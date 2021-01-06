@@ -1,0 +1,72 @@
+---
+- block:
+    - name: install libs
+      yum:
+        name:
+          - python2-cryptography
+        state: installed
+      when: ansible_distribution_major_version == "7"
+    - name: install libs
+      yum:
+        name:
+          - python3-cryptography
+        state: installed
+      when: ansible_distribution_major_version == "8"
+    - name: create dirs for ansible files
+      file:
+        path: "/etc/ssl/ansible"
+        state: directory
+    - name: create dir for cert
+      file:
+        path: "/etc/ssl/ansible/{{ ssl.domains[0] }}"
+        state: directory
+
+    - name: generate priv key
+      openssl_privatekey:
+        path: "/etc/ssl/ansible/{{ ssl.domains[0] }}/privkey.pem"
+        size: 4096
+
+    - name: create csr
+      openssl_csr:
+        path: "/etc/ssl/ansible/{{ ssl.domains[0] }}/csr.pem"
+        privatekey_path: "/etc/ssl/ansible/{{ ssl.domains[0] }}/privkey.pem"
+        subject_alt_name: "{{ ssl.domains | map('regex_replace', '^', 'DNS:') | list }}"
+  become: true
+  become_user: root
+  delegate_to: "{{ ssl.keyserver }}"
+
+- include_tasks: "provider_{{ ssl.provider.type }}.yml"
+
+- name: slurp certificates
+  slurp:
+    src: "/etc/ssl/ansible/{{ ssl.domains[0] }}/{{ item }}"
+  loop:
+    - cert.pem
+    - fullchain.pem
+    - privkey.pem
+  register: _slurp_certs
+  become: true
+  become_user: root
+  delegate_to: "{{ ssl.keyserver }}"
+
+- block:
+    - name: create dest dir
+      file:
+        path: "{{ ssl.dest.dir }}"
+        state: directory
+        mode: 0700
+        owner: "{{ user.user }}"
+    - debug:
+        msg: "{{ _slurp_certs }}"
+    - name: copy certs to destination
+      copy:
+        content: "{{ _cert['content'] | b64decode }}"
+        dest: "{{ ssl.dest.dir }}/{{ _cert['item'] }}"
+        mode: 0600
+        owner: "{{ user.user }}"
+        group: "{{ user.group }}"
+      loop: "{{ _slurp_certs['results'] }}"
+      loop_control:
+        loop_var: _cert
+  become: true
+  become_user: root

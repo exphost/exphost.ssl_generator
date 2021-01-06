@@ -1,0 +1,9 @@
+---
+- name: debug
+  debug:
+    msg: "Jestem ssl_generatore"
+
+- include_tasks: "ssl_loop.yml"
+  loop: "{{ ssls }}"
+  loop_control:
+    loop_var: ssl

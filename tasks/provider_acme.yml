@@ -1,0 +1,94 @@
+---
+- debug:
+    msg: "Jestem acme"
+- block:
+    - name: generate acme priv key
+      openssl_privatekey:
+        path: /etc/ssl/ansible/priv.key
+        size: 4096
+
+    - name: create acme_account
+      acme_account:
+        account_key_src: /etc/ssl/ansible/priv.key
+        state: present
+        terms_agreed: true
+        contact:
+          - "mailto:{{ ssl.provider.account.email }}"
+        acme_version: 2
+        acme_directory: https://acme-v02.api.letsencrypt.org/directory
+
+
+    - name: request certificate
+      acme_certificate:
+        account_key_src: /etc/ssl/ansible/priv.key
+        csr: "/etc/ssl/ansible/{{ ssl.domains[0] }}/csr.pem"
+        dest: "/etc/ssl/ansible/{{ ssl.domains[0] }}/cert.pem"
+        fullchain_dest: "/etc/ssl/ansible/{{ ssl.domains[0] }}/fullchain.pem"
+        challenge: dns-01
+        acme_version: 2
+        acme_directory: https://acme-v02.api.letsencrypt.org/directory
+        remaining_days: 30
+      register: _ssl_request
+
+    - block:
+        - name: install libs
+          yum:
+            name:
+              - python-dns
+            state: installed
+          when: ansible_distribution_major_version == "7"
+        - name: install libs
+          yum:
+            name:
+              - python3-dns
+            state: installed
+          when: ansible_distribution_major_version == "8"
+
+        - name: read key secret
+          shell: "grep Key: /var/named/Kansible.private|awk '{print $2}'"
+          register: _dnsseckey_value
+          check_mode: false
+          changed_when: false
+
+        - name: set dns records for challanges
+          nsupdate:
+            server: "127.0.0.1"
+            key_algorithm: "hmac-md5"
+            key_name: "ansible"
+            key_secret: "{{ _dnsseckey_value.stdout }}"
+            record: "{{ _challenge.value['dns-01'].record }}."
+            type: "TXT"
+            value: "{{ _challenge.value['dns-01'].resource_value }}"
+          loop: "{{ _ssl_request.challenge_data | dict2items }}"
+          loop_control:
+            loop_var: _challenge
+
+        - name: get certificate
+          acme_certificate:
+            account_key_src: /etc/ssl/ansible/priv.key
+            csr: "/etc/ssl/ansible/{{ ssl.domains[0] }}/csr.pem"
+            dest: "/etc/ssl/ansible/{{ ssl.domains[0] }}/cert.pem"
+            fullchain_dest: "/etc/ssl/ansible/{{ ssl.domains[0] }}/fullchain.pem"
+            challenge: dns-01
+            acme_version: 2
+            acme_directory: https://acme-v02.api.letsencrypt.org/directory
+            remaining_days: 30
+            data: "{{ _ssl_request }}"
+          delegate_to: "{{ ssl.keyserver }}"
+        - name: clean dns records for challanges
+          nsupdate:
+            server: "127.0.0.1"
+            key_algorithm: "hmac-md5"
+            key_name: "ansible"
+            key_secret: "{{ _dnsseckey_value.stdout }}"
+            record: "{{ _challenge.value['dns-01'].record }}."
+            type: "TXT"
+            state: absent
+          loop: "{{ _ssl_request.challenge_data | dict2items }}"
+          loop_control:
+            loop_var: _challenge
+      delegate_to: cicd-master-0
+      when: _ssl_request.changed
+
+  become: true
+  delegate_to: "{{ ssl.keyserver }}"
