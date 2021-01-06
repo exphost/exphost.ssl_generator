@@ -87,7 +87,7 @@
           loop: "{{ _ssl_request.challenge_data | dict2items }}"
           loop_control:
             loop_var: _challenge
-      delegate_to: cicd-master-0
+      delegate_to: "{{ ssl.provider.challenge.delegate }}"
       when: _ssl_request.changed
 
   become: true
