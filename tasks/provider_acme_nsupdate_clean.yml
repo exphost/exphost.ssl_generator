@@ -1,0 +1,12 @@
+- name: clean dns records for challanges
+  nsupdate:
+    server: "127.0.0.1"
+    key_algorithm: "hmac-md5"
+    key_name: "ansible"
+    key_secret: "{{ _dnsseckey_value.stdout }}"
+    record: "{{ _challenge.value['dns-01'].record }}."
+    type: "TXT"
+    state: absent
+  loop: "{{ _ssl_request.challenge_data | dict2items }}"
+  loop_control:
+    loop_var: _challenge

@@ -1,0 +1,31 @@
+- name: install libs
+  yum:
+    name:
+      - python-dns
+    state: installed
+  when: ansible_distribution_major_version == "7"
+- name: install libs
+  yum:
+    name:
+      - python3-dns
+    state: installed
+  when: ansible_distribution_major_version == "8"
+
+- name: read key secret
+  shell: "grep Key: /var/named/Kansible.private|awk '{print $2}'"
+  register: _dnsseckey_value
+  check_mode: false
+  changed_when: false
+
+- name: set dns records for challanges
+  nsupdate:
+    server: "127.0.0.1"
+    key_algorithm: "hmac-md5"
+    key_name: "ansible"
+    key_secret: "{{ _dnsseckey_value.stdout }}"
+    record: "{{ _challenge.value['dns-01'].record }}."
+    type: "TXT"
+    value: "{{ _challenge.value['dns-01'].resource_value }}"
+  loop: "{{ _ssl_request.challenge_data | dict2items }}"
+  loop_control:
+    loop_var: _challenge
