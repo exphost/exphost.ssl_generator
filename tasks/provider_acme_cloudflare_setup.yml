@@ -1,0 +1,10 @@
+- name: set dns records for challanges
+  cloudflare_dns:
+    zone: "{{ _challenge.value['dns-01'].record.split('.')[-2:]|join('.') }}"
+    record: "{{ _challenge.value['dns-01'].record.split('.')[:-2]|join('.') }}"
+    type: "TXT"
+    value: "{{ _challenge.value['dns-01'].resource_value }}"
+    api_token: "{{ ssl.provider.challenge.api_token }}"
+  loop: "{{ _ssl_request.challenge_data | dict2items }}"
+  loop_control:
+    loop_var: _challenge

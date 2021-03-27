@@ -50,7 +50,7 @@
         - name: setup named records
           include_tasks: "provider_acme_{{ ssl.provider.challenge.provider | default('nsupdate') }}_clean.yml"
 
-      delegate_to: "{{ ssl.provider.challenge.delegate }}"
+      delegate_to: "{{ ssl.provider.challenge.delegate | default(omit)}}"
       when: _ssl_request.changed
 
   become: true
