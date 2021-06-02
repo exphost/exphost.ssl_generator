@@ -1,0 +1,7 @@
+dependencies:
+  - role: exphost.ssl_generator
+    vars:
+      ssls: "{{ app.value.dummy.ssls }}"
+      user: "{{ app.value.dummy.user | default({}) }}"
+    when: app.value.dummy.ssls | default(False)
+

@@ -1,0 +1,26 @@
+---
+- block:
+  - name: generate selfsigned
+    community.crypto.x509_certificate:
+      path: "/etc/ssl/ansible/{{ ssl.domains[0] }}/cert.pem"
+      csr_path: "/etc/ssl/ansible/{{ ssl.domains[0] }}/csr.pem"
+      privatekey_path: "/etc/ssl/ansible/{{ ssl.domains[0] }}/privkey.pem"
+      provider: ownca
+      ownca_path: "/etc/ssl/ansible/{{ ssl.provider.ca }}/cert.pem"
+      ownca_privatekey_path: "/etc/ssl/ansible/{{ ssl.provider.ca }}/privkey.pem"
+  - name: read the certs
+    vars:
+      _cert: "/etc/ssl/ansible/{{ ssl.domains[0] }}/cert.pem"
+      _ca: "/etc/ssl/ansible/{{ ssl.provider.ca }}/cert.pem"
+    command: "cat {{ _cert }} {{ _ca }}"
+    register: _fullchain
+    changed_when: false
+    check_mode: false
+  - name: assemble fullchain
+    copy:
+      content: "{{ _fullchain.stdout }}"
+      dest: "/etc/ssl/ansible/{{ ssl.domains[0] }}/fullchain.pem"
+      mode: 0700
+  become: true
+  become_user: root
+  delegate_to: "{{ ssl.keyserver }}"

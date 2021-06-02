@@ -1,3 +1,4 @@
+---
 - name: clean dns records for challanges
   cloudflare_dns:
     zone: "{{ _challenge.value['dns-01'].record.split('.')[-2:]|join('.') }}"
@@ -8,4 +9,3 @@
   loop: "{{ _ssl_request.challenge_data | dict2items }}"
   loop_control:
     loop_var: _challenge
-

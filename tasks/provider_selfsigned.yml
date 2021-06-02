@@ -1,0 +1,17 @@
+---
+- block:
+  - name: generate selfsigned
+    community.crypto.x509_certificate:
+      path: "/etc/ssl/ansible/{{ ssl.domains[0] }}/cert.pem"
+      csr_path: "/etc/ssl/ansible/{{ ssl.domains[0] }}/csr.pem"
+      privatekey_path: "/etc/ssl/ansible/{{ ssl.domains[0] }}/privkey.pem"
+      provider: selfsigned
+  - name: copy cert to fullchain
+    copy:
+      src: "/etc/ssl/ansible/{{ ssl.domains[0] }}/cert.pem"
+      dest: "/etc/ssl/ansible/{{ ssl.domains[0] }}/fullchain.pem"
+      remote_src: true
+      mode: 0700
+  become: true
+  become_user: root
+  delegate_to: "{{ ssl.keyserver }}"

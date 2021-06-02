@@ -1,0 +1,22 @@
+apps_java:
+  dummy:
+    dummy:
+      type: dummy
+      enabled: True
+      ssls:
+        - domains:
+          - ca.some.domain.xyz
+          keyserver: test-0
+          dest:
+            dir: /etc/ssl/generated/ca
+          provider:
+            type: selfsigned
+          ca: True
+        - domains:
+          - sub.some.domain.xyz
+          keyserver: test-0
+          dest:
+            dir: /etc/ssl/generated/sub
+          provider:
+            type: ownca
+            ca: ca.some.domain.xyz

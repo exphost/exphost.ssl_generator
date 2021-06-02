@@ -1,3 +1,4 @@
+---
 - name: install libs
   yum:
     name:
@@ -12,7 +13,7 @@
   when: ansible_distribution_major_version == "8"
 
 - name: read key secret
-  shell: "grep Key: /var/named/Kansible.private|awk '{print $2}'"
+  shell: "set -o pipefail && grep Key: /var/named/Kansible.private|awk '{print $2}'"
   register: _dnsseckey_value
   check_mode: false
   changed_when: false
